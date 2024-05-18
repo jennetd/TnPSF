@@ -1,5 +1,5 @@
 import ROOT as r
-import uproot3
+import uproot
 import json
 import os
 import pprint
@@ -23,9 +23,9 @@ def str2bool(v):
         raise argparse.ArgumentTypeError('Boolean value expected.')
 
 def convTH1(TH1):
-    vals = TH1.values
-    edges = TH1.edges
-    variances = TH1.variances
+    vals = TH1.values()
+    edges = TH1.axis().edges()
+    variances = TH1.variances()
     vals = vals * np.diff(edges)
     variances = variances * np.diff(edges)
     return vals, edges, variances
@@ -34,11 +34,11 @@ def convTH1(TH1):
 def covnTGA(tgasym):
         # https://github.com/cms-analysis/HiggsAnalysis-CombinedLimit/wiki/nonstandard
         # Rescale density by binwidth for actual value
-        _binwidth = tgasym._fEXlow + tgasym._fEXhigh
-        _x = tgasym._fX
-        _y = tgasym._fY * _binwidth
-        _xerrlo, _xerrhi = tgasym._fEXlow, tgasym._fEXhigh
-        _yerrlo, _yerrhi = tgasym._fEYlow * _binwidth, tgasym._fEYhigh * _binwidth
+        _binwidth = tgasym.errors("low",0) + tgasym.errors("high",0)
+        _x = tgasym.values(0)
+        _y = tgasym.values(1) * _binwidth
+        _xerrlo, _xerrhi = tgasym.errors("low",0), tgasym.errors("high",0)
+        _yerrlo, _yerrhi = tgasym.errors("low",1) * _binwidth, tgasym.errors("high",1) * _binwidth
         return _x, _y, [_yerrlo, _yerrhi], [_xerrlo, _xerrhi]
 
 parser = argparse.ArgumentParser()
@@ -59,7 +59,7 @@ parser.add_argument("-o",
                     help="Folder to store plots - will be created if it doesn't exist.")
 parser.add_argument("--year",
                     default=None,
-                    choices={"2016", "2017", "2018"},
+                    choices={"2016APV", "2016", "2017", "2018"},
                     type=str,
                     help="year label")
 parser.add_argument('-f',
@@ -68,21 +68,16 @@ parser.add_argument('-f',
                     default='png',
                     choices={'png', 'pdf'},
                     help="Plot format")
-parser.add_argument("--scale", 
-                    default='1', 
-                    type=float, 
-                    help="Scale value.")
-parser.add_argument("--smear", 
-                    default='0.5', 
-                    type=float, 
-                    help="Smear value.")
+
+parser.add_argument("--scale", default='1', type=float, help="Scale value.")
+parser.add_argument("--smear", default='0.5', type=float, help="Smear value.")
 
 args = parser.parse_args()
 if args.output_folder.split("/")[0] != args.dir:
     args.output_folder = os.path.join(args.dir, args.output_folder)
 
 rd = r.TFile.Open(os.path.join(args.dir, args.input))
-fd = uproot3.open(os.path.join(args.dir, args.input))
+fd = uproot.open(os.path.join(args.dir, args.input))
 with open(os.path.join(args.dir,'config.json')) as cfg_file:
     cfg = json.load(cfg_file)
 
@@ -102,7 +97,6 @@ out['shift_SF'] = cfg['scale'] * out['CMS_scale']['val'] * args.scale  # (templa
 out['shift_SF_ERR'] = cfg['scale'] * out['CMS_scale']['unc'] * args.scale  # (template shape)
 out['smear_SF'] = 1 + cfg['smear'] * out['CMS_smear']['val'] * args.smear  # (template shape)
 out['smear_SF_ERR'] = cfg['smear'] * out['CMS_smear']['unc'] * args.smear # (template shape)
-
 if 'effSF' in out.keys():
     out['V_SF'] = out['effSF']['val']
     out['V_SF_ERR'] = out['effSF']['unc']
@@ -116,17 +110,26 @@ plt.style.use([hep.style.ROOT])
 
 
 shapetype = 'shapes_{}'.format(args.fit)
-regions = [r.decode('utf').replace(";1", '') for r in fd[shapetype].keys()]
+regions = ['wsfSingleFail', 'wsfSinglePass']
+
+
+#[r.decode('utf').replace(";1", '') for r in fd[shapetype].keys()]
 
 lumi = {
     "mu": {
-        "2016": 35.2,
-        "2017": 41.1,
-        "2018": 59.0,
+        "2016APV": 19.52,
+        "2016": 16.81,
+        "2017": 41.48,
+        "2018": 59.83
     }
 }
 
+print(regions)
+
 for i, reg in enumerate(regions):
+    
+    print(reg)
+
     fig, (ax, rax) = plt.subplots(2,1, figsize=(10, 10), gridspec_kw = {'height_ratios':[3, 1]}, sharex=True)
     fig.subplots_adjust(hspace=0)
 
@@ -158,14 +161,14 @@ for i, reg in enumerate(regions):
     if i == len(regions) - 1:
         ax.set_ylim(None, ax.get_ylim()[-1]*1.5)    
         if "Secondary" in reg:
-            sfstr = ("SF (CvL) = {:.3f} $\pm$ {:.3f}".format(out['effwSF']['val'], out['effwSF']['unc'])
+            sfstr = ("SF = {:.3f} $\pm$ {:.3f}".format(out['effwSF']['val'], out['effwSF']['unc'])
                 + "\nSF (CvB+N2) = {:.3f} $\pm$ {:.3f}".format(out['effSF']['val'], out['effSF']['unc'])
                 + "\nScale = {:.3f} $\pm$ {:.3f}".format(out['shift_SF'], out['shift_SF_ERR'])
                 + "\nSmear = {:.3f} $\pm$ {:.3f}".format(out['smear_SF'], out['smear_SF_ERR'])
             )
         else:
             sfstr = (
-                "SF (CvL) = {:.3f} $\pm$ {:.3f}".format(out['effSF']['val'], out['effSF']['unc'])
+                "SF = {:.3f} $\pm$ {:.3f}".format(out['effSF']['val'], out['effSF']['unc'])
                 + "\nScale = {:.3f} $\pm$ {:.3f}".format(out['shift_SF'], out['shift_SF_ERR'])
                 + "\nSmear = {:.3f} $\pm$ {:.3f}".format(out['smear_SF'], out['smear_SF_ERR'])
             )

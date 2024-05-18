@@ -70,7 +70,7 @@ class MorphHistW2(object):
         return nom, edges, w2s
 
 
-class TH1(TH1Methods, list):
+class TH1(TH1Methods,list):
     pass
 
 
@@ -156,8 +156,9 @@ if __name__ == "__main__":
 
     work_dir = os.path.dirname(args.in_file)
 
-    # scale catp2 templates
-    for template_name in [k for k in source_file.keys() if 'catp2' in k]:
+    # scale ttbar templates
+    keys = [k.decode("utf-8")[:-2] for k in source_file.keys()]
+    for template_name in [k for k in keys if 'match' in k]:
         morph_base = MorphHistW2(source_file[template_name])
 
         scale_up = morph_base.get(shift=args.scale)
@@ -194,8 +195,8 @@ if __name__ == "__main__":
 
         template_name
 
-        # Clone remaining templates:
-        for template_name in [k for k in source_file.keys() if 'catp2' not in k]:
-            fout[template_name] = source_file[template_name]
+    # Clone remaining templates:
+    for template_name in [k for k in keys if 'match' not in k]:
+        fout[template_name] = source_file[template_name]
 
     fout.close()

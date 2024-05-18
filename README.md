@@ -6,32 +6,21 @@ Follow official combine instruction or setup with `conda` using [this branch](ht
 Setup [rhalphalib](https://github.com/nsmith-/rhalphalib) and then
 
 ```bash
-git clone https://github.com/andrzejnovak/TnPSF.git
+git clone https://github.com/jennetd/TnPSF.git
 cd TnPSF
 ```
 
 ### Generate variations 
 For each root file generate variations (only matched - catp2)
 ```bash
-python scalesmear.py -i templates/wfit_nskim17_n2/wtag_pass.root  --plot
-python scalesmear.py -i templates/wfit_nskim17_n2/wtag_fail.root  --plot
+python scalesmear.py -i templates/2016/TnPtemplates.root --plot --scale 4 --smear 0.5
 ```
 
 ### Generate combine/rhalphalib workspace and fit
 
 ```bash
-python sf.py --fit single -t templates/ref18/wtemplates_n2cvb_var.root -o FitSingle
+python sf.py --fit single -t templates/2016/TnPtemplates_var.root -o 2016-FitSingle --scale 4 --smear 0.5
 cd FitSingle
-```
-
-or for two-cut setup:
-```
-python sf.py --fit double -t templates/ref18/wtemplates_n2cvb_var.root --t2 templates/ref18/wtemplates_cvl_var.root -o FitDouble
-cd FitDouble
-```
-and run the fit
-```
-combine -M FitDiagnostics --expectSignal 1 -d model_combined.root --cminDefaultMinimizerStrategy 0 --robustFit=1 --saveShapes --saveWithUncertainties --rMin 0.5 --rMax 1.5
 ```
 
 To make plots from `FitDiagnostics` output, run within the fit folder:
